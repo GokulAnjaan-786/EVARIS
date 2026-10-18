@@ -9,24 +9,24 @@ from typing import Tuple, Optional
 
 
 CONVERSATIONAL_PATTERNS = [
-    r"^(hello|hi|hey|good morning|good afternoon|good evening)",
-    r"can you (hear|see) me",
-    r"am i audible",
-    r"test(ing)?\s*(one\s*two|mic|1\s*2)?",
-    r"is the (screen|audio|mic|microphone|camera) working",
-    r"let('?s)? wait for (everyone|the others|a minute)",
-    r"settle down (class|students|everyone)?",
-    r"open your (text)?books? (to page)?",
-    r"turn to page",
-    r"how are you",
-    r"thank you",
-    r"bye|goodbye|see you (tomorrow|later)?",
-    r"any questions (so far)?",
-    r"okay guys",
-    r"alright so yeah",
-    r"um+ (yeah|okay|right)",
-    r"just a (second|moment)",
-    r"please quiet down"
+    r"^(hello|hi|hey|good morning|good afternoon|good evening)\b",
+    r"\bcan you (hear|see) me\b",
+    r"\bam i audible\b",
+    r"\btest(ing)?\s*(one\s*two|mic|1\s*2)?\b",
+    r"\bis the (screen|audio|mic|microphone|camera) working\b",
+    r"\blet('?s)? wait for (everyone|the others|a minute)\b",
+    r"\bsettle down (class|students|everyone)?\b",
+    r"\bopen your (text)?books? (to page)?\b",
+    r"\bturn to page\b",
+    r"\bhow are you\b",
+    r"\bthank you\b",
+    r"\b(bye|goodbye)\b|see you (tomorrow|later)?",
+    r"\bany questions (so far)?\b",
+    r"\bokay guys\b",
+    r"\balright so yeah\b",
+    r"\bum+ (yeah|okay|right)\b",
+    r"\bjust a (second|moment)\b",
+    r"\bplease quiet down\b"
 ]
 
 

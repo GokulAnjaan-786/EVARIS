@@ -44,11 +44,22 @@ class DecisionEngine:
         # 1. Update Context
         self.context_buffer.add_sentence(sentence, subject=subject, topic=topic)
 
+        # Detect parameter mutations from active visual payload
+        has_param_update = False
+        if self.last_visual_payload is not None:
+            old_expr = self.last_visual_payload.data.get("function_expr") or self.last_visual_payload.data.get("latex")
+            new_expr = step.get("function_expr") or step.get("latex")
+            if old_expr and new_expr and old_expr != new_expr:
+                has_param_update = True
+            elif str(step.get("intent", "")) in ["UPDATE", "TeacherIntent.UPDATE"]:
+                has_param_update = True
+
         # 2. Evaluate Transition
         mode, reason = self.concept_tracker.evaluate_transition(
             incoming_concept=concept,
             continuity_key=continuity_key,
-            target_feature_id=target_feature_id
+            target_feature_id=target_feature_id,
+            has_parameter_update=has_param_update
         )
 
         # If RETAIN and we already have a visual payload, suppress visual churn

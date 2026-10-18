@@ -75,7 +75,7 @@ export const TeacherVideoPreview: React.FC<TeacherVideoPreviewProps> = ({
       {/* Viewport / Video Area */}
       <div
         style={{
-          height: "190px",
+          height: "135px",
           position: "relative",
           backgroundColor: "#0b0f19",
           display: "flex",
@@ -104,15 +104,15 @@ export const TeacherVideoPreview: React.FC<TeacherVideoPreviewProps> = ({
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
-              gap: "8px",
-              padding: "16px",
+              gap: "4px",
+              padding: "10px",
               textAlign: "center",
             }}
           >
             <div
               style={{
-                width: "56px",
-                height: "56px",
+                width: "44px",
+                height: "44px",
                 borderRadius: "50%",
                 backgroundColor: "rgba(37, 99, 235, 0.15)",
                 border: "1.5px solid rgba(59, 130, 246, 0.4)",
@@ -121,7 +121,7 @@ export const TeacherVideoPreview: React.FC<TeacherVideoPreviewProps> = ({
                 justifyContent: "center",
               }}
             >
-              <UserCheck size={28} color="#60a5fa" />
+              <UserCheck size={22} color="#60a5fa" />
             </div>
             <div>
               <p style={{ fontSize: "0.82rem", fontWeight: 600, color: "#f8fafc" }}>

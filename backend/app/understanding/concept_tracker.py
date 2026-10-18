@@ -20,7 +20,8 @@ class ConceptTracker:
         self,
         incoming_concept: str,
         continuity_key: str,
-        target_feature_id: str = None
+        target_feature_id: str = None,
+        has_parameter_update: bool = False
     ) -> Tuple[RenderMode, str]:
         """Evaluates relationship between current concept state and incoming concept.
         
@@ -33,10 +34,13 @@ class ConceptTracker:
             self.active_continuity_key = continuity_key
             return RenderMode.CREATE, "Initial concept introduction"
 
-        # Same continuity lineage and same concept, but highlighting a feature
+        # Same continuity lineage
         if continuity_key == self.active_continuity_key:
             if target_feature_id:
                 return RenderMode.HIGHLIGHT, f"Focusing on sub-element '{target_feature_id}' within current visual"
+            elif has_parameter_update:
+                self.active_concept = incoming_concept
+                return RenderMode.UPDATE, f"Mutating parameters of current visual for {incoming_concept}"
             elif incoming_concept == self.active_concept:
                 return RenderMode.RETAIN, "Sustained explanation on active concept; visual stability maintained"
             else:

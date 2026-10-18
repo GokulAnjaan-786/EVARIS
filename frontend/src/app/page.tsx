@@ -36,7 +36,9 @@ export default function ClassroomPage() {
     teachingStatus,
     sessionMode,
     transcript,
+    continuousTranscript,
     fullTranscriptHistory,
+    rawTranscriptHistory,
     activeVisual,
     telemetry,
     activeSubject,
@@ -195,57 +197,69 @@ export default function ClassroomPage() {
 
   return (
     <main
+      id="classroom-main-viewport"
       style={{
         display: "flex",
         flexDirection: "column",
-        minHeight: "100vh",
+        height: "100vh",
+        maxHeight: "100vh",
+        minHeight: 0,
+        overflow: "hidden",
         backgroundColor: "var(--bg-app)",
       }}
     >
       {/* 1. Top Application Header */}
-      <ClassroomHeader
-        connectionStatus={connectionStatus}
-        teachingStatus={teachingStatus}
-        primarySubject={primarySubject}
-        totalSelectedSubjects={selectedSubjects.length}
-        sessionId="session_evaris_demo"
-        onOpenSubjectModal={() => setIsSubjectModalOpen(true)}
-      />
+      <div style={{ flexShrink: 0 }}>
+        <ClassroomHeader
+          connectionStatus={connectionStatus}
+          teachingStatus={teachingStatus}
+          primarySubject={primarySubject}
+          totalSelectedSubjects={selectedSubjects.length}
+          sessionId="session_evaris_demo"
+          onOpenSubjectModal={() => setIsSubjectModalOpen(true)}
+        />
+      </div>
 
       {/* 2. Main Content Container */}
       <div
+        id="classroom-content-container"
         style={{
           flex: 1,
+          minHeight: 0,
+          minWidth: 0,
+          overflow: "hidden",
           display: "flex",
           flexDirection: "column",
-          gap: "14px",
-          padding: "16px 24px 20px 24px",
+          gap: "10px",
+          padding: "10px 20px 12px 20px",
           maxWidth: "1680px",
           width: "100%",
           margin: "0 auto",
         }}
       >
         {/* Lesson Configuration & Control Toolbar */}
-        <ClassroomControls
-          teachingStatus={teachingStatus}
-          isVisualFrozen={isVisualFrozen}
-          isLiveAudioActive={audioCapture.isCapturing || isLiveAudioActive}
-          onStartLiveAudio={handleStartLiveSession}
-          onStopLiveAudio={handleStopLiveSession}
-          onStartLesson={handleStartSampleLesson}
-          onPause={pauseTeaching}
-          onResume={resumeTeaching}
-          onToggleFreeze={toggleFreezeVisual}
-          onReset={handleResetLesson}
-          onManualStep={manualStep}
-          selectedSubjects={selectedSubjects}
-          primarySubject={primarySubject}
-          onSelectPrimarySubject={handleSelectPrimarySubject}
-          customSubjects={customSubjects}
-          onOpenSubjectModal={() => setIsSubjectModalOpen(true)}
-          activeLessonId={currentSubjectDef?.demoLesson?.lessonId || null}
-          onShowUnsupportedMessage={(sub) => setUnsupportedAlertSubject(sub)}
-        />
+        <div style={{ flexShrink: 0 }}>
+          <ClassroomControls
+            teachingStatus={teachingStatus}
+            isVisualFrozen={isVisualFrozen}
+            isLiveAudioActive={audioCapture.isCapturing || isLiveAudioActive}
+            onStartLiveAudio={handleStartLiveSession}
+            onStopLiveAudio={handleStopLiveSession}
+            onStartLesson={handleStartSampleLesson}
+            onPause={pauseTeaching}
+            onResume={resumeTeaching}
+            onToggleFreeze={toggleFreezeVisual}
+            onReset={handleResetLesson}
+            onManualStep={manualStep}
+            selectedSubjects={selectedSubjects}
+            primarySubject={primarySubject}
+            onSelectPrimarySubject={handleSelectPrimarySubject}
+            customSubjects={customSubjects}
+            onOpenSubjectModal={() => setIsSubjectModalOpen(true)}
+            activeLessonId={currentSubjectDef?.demoLesson?.lessonId || null}
+            onShowUnsupportedMessage={(sub) => setUnsupportedAlertSubject(sub)}
+          />
+        </div>
 
         {/* Transparent Microphone Permission / Hardware Error Banner */}
         {audioCapture.permissionError && (
@@ -255,13 +269,14 @@ export default function ClassroomPage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              padding: "10px 16px",
+              padding: "8px 14px",
               backgroundColor: "#fef2f2",
               border: "1px solid #fecaca",
               borderRadius: "var(--radius-lg)",
               color: "#991b1b",
               fontSize: "0.82rem",
               fontWeight: 500,
+              flexShrink: 0,
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -271,7 +286,7 @@ export default function ClassroomPage() {
             <button
               onClick={handleStartLiveSession}
               className="btn btn-secondary"
-              style={{ padding: "4px 10px", fontSize: "0.75rem", borderColor: "#fca5a5" }}
+              style={{ padding: "3px 8px", fontSize: "0.72rem", borderColor: "#fca5a5" }}
             >
               Retry Microphone
             </button>
@@ -279,42 +294,65 @@ export default function ClassroomPage() {
         )}
 
         {/* Concept / Lineage Status Indicator */}
-        <TopicStatusBadge
-          activeVisual={activeVisual}
-          activeSubject={activeSubject || primarySubject}
-        />
+        <div style={{ flexShrink: 0 }}>
+          <TopicStatusBadge
+            activeVisual={activeVisual}
+            activeSubject={activeSubject || primarySubject}
+          />
+        </div>
 
-        {/* Mandatory Split Layout: Teacher Left (1/3), Dark Visual Stage Right (2/3) */}
+        {/* Mandatory Split Layout: Teacher Left (360px), Dark Visual Stage Right (Bounded Viewport) */}
         <div
           id="classroom-split-workspace"
           style={{
             flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            overflow: "hidden",
             display: "grid",
             gridTemplateColumns: "360px 1fr",
-            gap: "16px",
-            minHeight: "540px",
+            gridTemplateRows: "100%",
+            gap: "14px",
           }}
         >
           {/* Left Column: Teacher Video + Live Transcript Panel */}
           <div
+            id="classroom-left-column"
             style={{
               display: "flex",
               flexDirection: "column",
-              gap: "14px",
+              gap: "10px",
+              height: "100%",
+              maxHeight: "100%",
+              minHeight: 0,
+              minWidth: 0,
+              overflow: "hidden",
             }}
           >
-            <TeacherVideoPreview
-              isMicActive={audioCapture.isCapturing}
-              audioLevel={audioCapture.audioLevel}
-              framesSent={audioCapture.framesSent}
-              permissionError={audioCapture.permissionError}
-              onToggleLiveSession={audioCapture.isCapturing ? handleStopLiveSession : handleStartLiveSession}
-            />
+            <div style={{ flexShrink: 0 }}>
+              <TeacherVideoPreview
+                isMicActive={audioCapture.isCapturing}
+                audioLevel={audioCapture.audioLevel}
+                framesSent={audioCapture.framesSent}
+                permissionError={audioCapture.permissionError}
+                onToggleLiveSession={audioCapture.isCapturing ? handleStopLiveSession : handleStartLiveSession}
+              />
+            </div>
 
-            <div style={{ flex: 1, minHeight: "260px" }}>
+            <div
+              id="transcript-column-wrapper"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                minWidth: 0,
+                overflow: "hidden",
+              }}
+            >
               <LiveTranscriptBar
                 transcript={transcript}
                 history={fullTranscriptHistory}
+                continuousText={continuousTranscript}
+                rawHistory={rawTranscriptHistory}
                 isMicActive={audioCapture.isCapturing || isLiveAudioActive}
                 isTeaching={teachingStatus === "TEACHING"}
               />
@@ -322,7 +360,18 @@ export default function ClassroomPage() {
           </div>
 
           {/* Right Column: Universal Automatic Visual Stage (Large Dark Canvas) */}
-          <div style={{ display: "flex", flexDirection: "column", minHeight: "520px" }}>
+          <div
+            id="classroom-right-column"
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              maxHeight: "100%",
+              minHeight: 0,
+              minWidth: 0,
+              overflow: "hidden",
+            }}
+          >
             <VisualStage
               activeVisual={activeVisual}
               isVisualFrozen={isVisualFrozen}
@@ -336,17 +385,19 @@ export default function ClassroomPage() {
         </div>
 
         {/* 3. Compact Diagnostic Telemetry HUD with 7-Stage End-to-End Trace */}
-        <TelemetryHUD
-          telemetry={telemetry}
-          diagnosticTrace={diagnosticTrace}
-          sessionMode={sessionMode}
-          micPermission={audioCapture.permissionStatus}
-          isHardwareCapturing={audioCapture.isCapturing}
-          processorType={audioCapture.processorType}
-          framesSent={audioCapture.framesSent}
-          audioLevel={audioCapture.audioLevel}
-          permissionError={audioCapture.permissionError}
-        />
+        <div style={{ flexShrink: 0 }}>
+          <TelemetryHUD
+            telemetry={telemetry}
+            diagnosticTrace={diagnosticTrace}
+            sessionMode={sessionMode}
+            micPermission={audioCapture.permissionStatus}
+            isHardwareCapturing={audioCapture.isCapturing}
+            processorType={audioCapture.processorType}
+            framesSent={audioCapture.framesSent}
+            audioLevel={audioCapture.audioLevel}
+            permissionError={audioCapture.permissionError}
+          />
+        </div>
       </div>
 
       {/* Universal Multi-Subject Selection Dialog */}

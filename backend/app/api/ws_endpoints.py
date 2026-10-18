@@ -12,8 +12,11 @@ import asyncio
 import json
 import time
 import base64
+import logging
 from typing import Dict, Any, Optional
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger("evaris.live_pipeline")
 
 from ..core.telemetry import LatencyRecord
 from ..understanding.decision_engine import DecisionEngine
@@ -191,6 +194,7 @@ class ClassroomSession:
                 })
 
                 # Emit genuine live transcript update
+                logger.info(f"[STAGE 1-3 TRANSCRIPT] Recognized text: '{text}' (infer_ms={infer_ms:.1f}ms, energy={energy:.4f})")
                 await self.send_event("TRANSCRIPT_UPDATE", {
                     "token": "",
                     "sentence": text,
@@ -211,6 +215,7 @@ class ClassroomSession:
                 )
                 understanding_done_ts = time.time()
                 telemetry.understanding_done_ts = understanding_done_ts
+                logger.info(f"[STAGE 4 CONCEPT] Concept='{concept_name}', Subject='{self.live_subject}', is_found={is_concept_found}")
 
                 # Stage 4: CONCEPT_EXTRACTED
                 await self.send_event("DIAGNOSTIC_EVENT", {
@@ -230,6 +235,7 @@ class ClassroomSession:
                 # Stage 5: VISUAL_ACTION_SELECTED
                 action_mode = visual_payload.mode.value if visual_payload else "RETAIN"
                 typology_str = visual_payload.typology.value if visual_payload else None
+                logger.info(f"[STAGE 5 ACTION] Mode={action_mode}, Typology={typology_str}, Frozen={self.is_frozen}")
                 await self.send_event("DIAGNOSTIC_EVENT", {
                     "session_id": self.session_id,
                     "trace_id": trace_id,
@@ -248,6 +254,7 @@ class ClassroomSession:
                     telemetry.visual_ready_ts = visual_done_ts
 
                     # Stage 6: VISUAL_PAYLOAD_VALIDATED
+                    logger.info(f"[STAGE 6 PAYLOAD] Generated valid payload: id={visual_payload.visual_id}, mode={action_mode}, title='{visual_payload.title}', data_keys={list(visual_payload.data.keys())}")
                     await self.send_event("DIAGNOSTIC_EVENT", {
                         "session_id": self.session_id,
                         "trace_id": trace_id,
@@ -454,6 +461,7 @@ async def classroom_websocket_endpoint(websocket: WebSocket, session_id: str):
                     session.live_audio_buffer.clear()
                     session.live_subject = payload.get("subject", "Mathematics")
                     session.step_counter = 0
+                    session.decision_engine.reset()
                     await session.send_event("STATUS_CHANGE", {
                         "status": "LISTENING",
                         "subject": session.live_subject,
@@ -492,6 +500,7 @@ async def classroom_websocket_endpoint(websocket: WebSocket, session_id: str):
                     # Stage 7: FRONTEND_RENDERED confirmation
                     trace_id = payload.get("trace_id", f"trace_{session.session_id}_{session.step_counter}")
                     render_ms = payload.get("render_duration_ms", 0.0)
+                    logger.info(f"[STAGE 7 RENDERED] Frontend confirmed DOM render: visual_id='{payload.get('visual_id')}', render_ms={render_ms}ms")
                     await session.send_event("DIAGNOSTIC_EVENT", {
                         "session_id": session.session_id,
                         "trace_id": trace_id,

@@ -5,47 +5,90 @@ import { ActiveFeature } from "../../types/classroom";
 
 interface GraphRendererProps {
   functionLatex: string;
-  functionExpr: string;
-  domain: [number, number];
-  rangeY: [number, number];
-  points: Array<{
+  functionExpr?: string;
+  domain?: [number, number];
+  rangeY?: [number, number];
+  points?: Array<{
     id: string;
     label: string;
     coordinates: [number, number];
     highlight?: boolean;
     details?: string;
   }>;
-  activeFeatures: ActiveFeature[];
+  activeFeatures?: ActiveFeature[];
 }
 
 export const GraphRenderer: React.FC<GraphRendererProps> = ({
   functionLatex,
+  functionExpr = "x * x - 4 * x + 3",
   domain = [-1, 5],
   rangeY = [-2, 6],
   points = [],
-  activeFeatures,
+  activeFeatures = [],
 }) => {
-  // SVG Canvas Dimension Dimensions
+  // SVG Canvas Dimensions
   const width = 640;
   const height = 400;
   const padding = 50;
 
-  const [xMin, xMax] = domain;
-  const [yMin, yMax] = rangeY;
+  const [xMin, xMax] = domain && domain.length === 2 ? domain : [-6, 6];
+  const [yMin, yMax] = rangeY && rangeY.length === 2 ? rangeY : [-6, 6];
 
   // Coordinate Conversion Functions
-  const toSvgX = (x: number) => padding + ((x - xMin) / (xMax - xMin)) * (width - 2 * padding);
-  const toSvgY = (y: number) => height - padding - ((y - yMin) / (yMax - yMin)) * (height - 2 * padding);
+  const toSvgX = useMemo(
+    () => (x: number) => padding + ((x - xMin) / (xMax - xMin || 1)) * (width - 2 * padding),
+    [xMin, xMax]
+  );
+  const toSvgY = useMemo(
+    () => (y: number) => height - padding - ((y - yMin) / (yMax - yMin || 1)) * (height - 2 * padding),
+    [yMin, yMax]
+  );
 
-  // Sample Curve Points: f(x) = x^2 - 4x + 3
+  // Safe Dynamic Function Evaluator
+  const evaluateFn = useMemo(() => {
+    if (!functionExpr) return (x: number) => x * x - 4 * x + 3;
+    try {
+      // Normalize operators safely
+      let expr = functionExpr
+        .replace(/\^/g, "**")
+        .replace(/\bsin\b(?!\()/g, "Math.sin")
+        .replace(/\bcos\b(?!\()/g, "Math.cos")
+        .replace(/\btan\b(?!\()/g, "Math.tan");
+
+      const compiledFn = new Function(
+        "x",
+        "Math",
+        `"use strict";
+        try {
+          return (${expr});
+        } catch (e) {
+          return 0;
+        }`
+      );
+
+      return (x: number) => {
+        try {
+          const val = compiledFn(x, Math);
+          return typeof val === "number" && !isNaN(val) && isFinite(val) ? val : 0;
+        } catch {
+          return 0;
+        }
+      };
+    } catch (err) {
+      console.warn("Failed to compile function expression:", functionExpr, err);
+      return (x: number) => x;
+    }
+  }, [functionExpr]);
+
+  // Sample Curve Points dynamically across active domain
   const curvePath = useMemo(() => {
-    const samples = 120;
+    const samples = 180;
     const pathSegments: string[] = [];
     const step = (xMax - xMin) / samples;
 
     for (let i = 0; i <= samples; i++) {
       const x = xMin + i * step;
-      const y = x * x - 4 * x + 3;
+      const y = evaluateFn(x);
       const sx = toSvgX(x);
       const sy = toSvgY(y);
 
@@ -56,10 +99,50 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
       }
     }
     return pathSegments.join(" ");
-  }, [xMin, xMax, yMin, yMax]);
+  }, [xMin, xMax, evaluateFn, toSvgX, toSvgY]);
 
-  const originX = toSvgX(0);
-  const originY = toSvgY(0);
+  // Clamped Origin Positions for Coordinate Axes
+  const rawOriginX = toSvgX(0);
+  const rawOriginY = toSvgY(0);
+  const originX = Math.max(padding, Math.min(width - padding, rawOriginX));
+  const originY = Math.max(padding, Math.min(height - padding, rawOriginY));
+
+  // Dynamic Ticks Calculation
+  const xTicks = useMemo(() => {
+    const span = xMax - xMin;
+    let step = 1;
+    if (span > 30) step = 10;
+    else if (span > 15) step = 5;
+    else if (span > 8) step = 2;
+    else if (span <= 3) step = 0.5;
+
+    const ticks: number[] = [];
+    const start = Math.ceil(xMin / step) * step;
+    for (let val = start; val <= xMax; val += step) {
+      if (Math.abs(val) > 0.01) {
+        ticks.push(Number(val.toFixed(2)));
+      }
+    }
+    return ticks;
+  }, [xMin, xMax]);
+
+  const yTicks = useMemo(() => {
+    const span = yMax - yMin;
+    let step = 1;
+    if (span > 30) step = 10;
+    else if (span > 15) step = 5;
+    else if (span > 8) step = 2;
+    else if (span <= 3) step = 0.5;
+
+    const ticks: number[] = [];
+    const start = Math.ceil(yMin / step) * step;
+    for (let val = start; val <= yMax; val += step) {
+      if (Math.abs(val) > 0.01) {
+        ticks.push(Number(val.toFixed(2)));
+      }
+    }
+    return ticks;
+  }, [yMin, yMax]);
 
   return (
     <div
@@ -96,28 +179,38 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
+
+          {/* Plot Area Clip Path to prevent curves bleeding outside padding */}
+          <clipPath id="graphPlotClip">
+            <rect
+              x={padding}
+              y={padding}
+              width={width - 2 * padding}
+              height={height - 2 * padding}
+            />
+          </clipPath>
         </defs>
 
-        {/* Coordinate Grid Lines */}
-        {[-1, 1, 2, 3, 4, 5].map((x) => (
+        {/* Dynamic Coordinate Grid Lines */}
+        {xTicks.map((x) => (
           <line
             key={`grid-x-${x}`}
             x1={toSvgX(x)}
             y1={padding}
             x2={toSvgX(x)}
             y2={height - padding}
-            stroke="rgba(255, 255, 255, 0.05)"
+            stroke="rgba(255, 255, 255, 0.06)"
             strokeDasharray="3 3"
           />
         ))}
-        {[-2, -1, 1, 2, 3, 4, 5, 6].map((y) => (
+        {yTicks.map((y) => (
           <line
             key={`grid-y-${y}`}
             x1={padding}
             y1={toSvgY(y)}
             x2={width - padding}
             y2={toSvgY(y)}
-            stroke="rgba(255, 255, 255, 0.05)"
+            stroke="rgba(255, 255, 255, 0.06)"
             strokeDasharray="3 3"
           />
         ))}
@@ -128,7 +221,7 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           y1={originY}
           x2={width - padding}
           y2={originY}
-          stroke="rgba(255, 255, 255, 0.35)"
+          stroke="rgba(255, 255, 255, 0.4)"
           strokeWidth="1.5"
         />
         <line
@@ -136,18 +229,18 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           y1={padding}
           x2={originX}
           y2={height - padding}
-          stroke="rgba(255, 255, 255, 0.35)"
+          stroke="rgba(255, 255, 255, 0.4)"
           strokeWidth="1.5"
         />
 
         {/* Axis Arrows */}
         <polygon
           points={`${width - padding + 8},${originY} ${width - padding},${originY - 4} ${width - padding},${originY + 4}`}
-          fill="rgba(255, 255, 255, 0.6)"
+          fill="rgba(255, 255, 255, 0.7)"
         />
         <polygon
           points={`${originX},${padding - 8} ${originX - 4},${padding} ${originX + 4},${padding}`}
-          fill="rgba(255, 255, 255, 0.6)"
+          fill="rgba(255, 255, 255, 0.7)"
         />
 
         {/* Axis Labels */}
@@ -171,12 +264,12 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           f(x)
         </text>
 
-        {/* Numeric Ticks */}
-        {[-1, 1, 2, 3, 4, 5].map((x) => (
+        {/* Dynamic Numeric Ticks */}
+        {xTicks.map((x) => (
           <text
             key={`tick-x-${x}`}
             x={toSvgX(x)}
-            y={originY + 16}
+            y={Math.min(height - 18, originY + 16)}
             fill="var(--text-muted)"
             fontSize="10"
             fontFamily="var(--font-family-mono)"
@@ -185,10 +278,10 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
             {x}
           </text>
         ))}
-        {[-2, -1, 1, 2, 3, 4, 5].map((y) => (
+        {yTicks.map((y) => (
           <text
             key={`tick-y-${y}`}
-            x={originX - 12}
+            x={Math.max(16, originX - 10)}
             y={toSvgY(y) + 3}
             fill="var(--text-muted)"
             fontSize="10"
@@ -199,8 +292,9 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           </text>
         ))}
 
-        {/* Parabola Continuous Curve */}
+        {/* Dynamic Continuous Curve Clipped to Graph Area */}
         <path
+          clipPath="url(#graphPlotClip)"
           d={curvePath}
           fill="none"
           stroke="url(#curveGradient)"
@@ -211,12 +305,42 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
           }}
         />
 
-        {/* Highlighted Points of Interest (Vertex, Roots) */}
+        {/* Formula Badge Card in Top Left */}
+        {functionLatex && (
+          <g transform={`translate(${padding + 8}, ${padding + 16})`}>
+            <rect
+              x="0"
+              y="-16"
+              width={Math.max(120, functionLatex.length * 8 + 24)}
+              height="24"
+              rx="6"
+              fill="rgba(13, 19, 34, 0.9)"
+              stroke="rgba(56, 189, 248, 0.4)"
+              strokeWidth="1"
+            />
+            <text
+              x="10"
+              y="0"
+              fill="#38bdf8"
+              fontSize="11"
+              fontWeight="700"
+              fontFamily="var(--font-family-mono)"
+            >
+              {functionLatex}
+            </text>
+          </g>
+        )}
+
+        {/* Highlighted Points of Interest (Vertex, Roots, Intercepts) */}
         {points.map((pt) => {
           const [px, py] = pt.coordinates;
           const sx = toSvgX(px);
           const sy = toSvgY(py);
           const isHighlighted = pt.highlight;
+
+          // Ensure callout badge stays comfortably within SVG view bounds
+          const calloutY = sy > 45 ? sy - 22 : sy + 28;
+          const calloutX = Math.max(65, Math.min(width - 65, sx));
 
           return (
             <g
@@ -249,20 +373,20 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
               />
 
               {/* Point Label Card Callout */}
-              <g transform={`translate(${sx}, ${sy - 22})`}>
+              <g transform={`translate(${calloutX}, ${calloutY})`}>
                 <rect
-                  x="-55"
-                  y="-16"
-                  width="110"
+                  x="-62"
+                  y="-14"
+                  width="124"
                   height="22"
                   rx="6"
-                  fill="rgba(10, 14, 23, 0.88)"
+                  fill="rgba(10, 14, 23, 0.92)"
                   stroke={isHighlighted ? "#38bdf8" : "rgba(255, 255, 255, 0.2)"}
                   strokeWidth={isHighlighted ? "1.5" : "1"}
                 />
                 <text
                   x="0"
-                  y="-2"
+                  y="1"
                   fill={isHighlighted ? "#ffffff" : "var(--text-secondary)"}
                   fontSize="10"
                   fontWeight={isHighlighted ? "700" : "500"}
@@ -279,3 +403,4 @@ export const GraphRenderer: React.FC<GraphRendererProps> = ({
     </div>
   );
 };
+

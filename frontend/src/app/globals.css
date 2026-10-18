@@ -66,7 +66,8 @@
 html,
 body {
   width: 100%;
-  min-height: 100vh;
+  height: 100%;
+  overflow: hidden;
   background-color: var(--bg-app);
   color: var(--text-primary);
   font-family: var(--font-sans);
@@ -260,4 +261,62 @@ body {
 .visual-stage-dark .katex {
   font-size: 1.35em !important;
   color: #f1f5f9 !important;
+}
+
+/* Strict Layout Containment — Flex/Grid items never expand parents */
+#classroom-main-viewport,
+#classroom-content-container,
+#classroom-split-workspace,
+#classroom-left-column,
+#classroom-right-column,
+#transcript-column-wrapper,
+#evaris-visual-stage,
+#live-transcript-panel,
+#visual-canvas-viewport,
+#active-visual-scroll-wrapper {
+  min-height: 0;
+  min-width: 0;
+}
+
+/* Responsive Support for Tablets and Mobile Screens */
+@media (max-width: 900px) {
+  html,
+  body {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  #classroom-main-viewport {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #classroom-content-container {
+    overflow: visible !important;
+    padding: 10px 12px;
+  }
+
+  #classroom-split-workspace {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  #classroom-left-column {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #transcript-column-wrapper {
+    height: 320px;
+    max-height: 320px;
+  }
+
+  #classroom-right-column {
+    height: 480px;
+    max-height: 480px;
+  }
 }

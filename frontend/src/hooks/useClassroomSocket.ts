@@ -9,12 +9,15 @@ import {
   TeachingStatus,
   DiagnosticEvent,
 } from "../types/classroom";
+import { mergeTranscriptSegments, splitIntoSentences } from "../lib/transcriptAggregator";
 
 export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>("CONNECTING");
   const [teachingStatus, setTeachingStatus] = useState<TeachingStatus>("IDLE");
   const [transcript, setTranscript] = useState<TranscriptEvent | null>(null);
+  const [continuousTranscript, setContinuousTranscript] = useState<string>("");
   const [fullTranscriptHistory, setFullTranscriptHistory] = useState<string[]>([]);
+  const [rawTranscriptHistory, setRawTranscriptHistory] = useState<string[]>([]);
   const [activeVisual, setActiveVisual] = useState<VisualPayload | null>(null);
   const [telemetry, setTelemetry] = useState<TelemetryReport | null>(null);
   const [activeSubject, setActiveSubject] = useState<string>("Mathematics");
@@ -50,7 +53,17 @@ export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
               setActiveSubject(payload.subject);
             }
             if (payload.is_final && payload.sentence) {
-              setFullTranscriptHistory((prev) => [...prev, payload.sentence]);
+              // 1. Preserve original unmerged chunk for debugging/truthful diagnostics
+              setRawTranscriptHistory((prev) => [...prev, payload.sentence]);
+
+              // 2. Aggregate into continuous transcript with overlap deduplication
+              setContinuousTranscript((prevContinuous) => {
+                const merged = mergeTranscriptSegments(prevContinuous, payload.sentence);
+                // Also update fullTranscriptHistory as readable sentence array
+                const sentences = splitIntoSentences(merged);
+                setFullTranscriptHistory(sentences);
+                return merged;
+              });
             }
           } else if (event_type === "VISUAL_PAYLOAD") {
             const startRenderTime = performance.now();
@@ -145,6 +158,10 @@ export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
     (subject: string) => {
       setIsLiveAudioActive(true);
       setSessionMode("LIVE");
+      setActiveVisual(null);
+      setContinuousTranscript("");
+      setFullTranscriptHistory([]);
+      setRawTranscriptHistory([]);
       setTranscript(null);
       setDiagnosticTrace({});
       sendCommand("START_LIVE_AUDIO", { subject });
@@ -176,7 +193,9 @@ export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
     (lessonId: string) => {
       setIsLiveAudioActive(false);
       setSessionMode("SIMULATED");
+      setContinuousTranscript("");
       setFullTranscriptHistory([]);
+      setRawTranscriptHistory([]);
       setTranscript(null);
       setDiagnosticTrace({});
       sendCommand("START_SAMPLE_LESSON", { lesson_id: lessonId });
@@ -203,7 +222,9 @@ export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
   const resetLesson = useCallback(() => {
     setIsLiveAudioActive(false);
     setSessionMode("STANDBY");
+    setContinuousTranscript("");
     setFullTranscriptHistory([]);
+    setRawTranscriptHistory([]);
     setTranscript(null);
     setActiveVisual(null);
     setTelemetry(null);
@@ -224,7 +245,9 @@ export function useClassroomSocket(sessionId: string = "session_evaris_demo") {
     teachingStatus,
     sessionMode,
     transcript,
+    continuousTranscript,
     fullTranscriptHistory,
+    rawTranscriptHistory,
     activeVisual,
     telemetry,
     activeSubject,

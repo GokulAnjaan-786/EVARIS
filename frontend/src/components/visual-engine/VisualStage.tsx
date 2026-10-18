@@ -36,7 +36,9 @@ export const VisualStage: React.FC<VisualStageProps> = ({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        minHeight: "520px",
+        maxHeight: "100%",
+        minHeight: 0,
+        minWidth: 0,
         overflow: "hidden",
       }}
     >
@@ -46,10 +48,11 @@ export const VisualStage: React.FC<VisualStageProps> = ({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "12px 20px",
+          padding: "10px 18px",
           backgroundColor: "#0d1322",
           borderBottom: "1px solid var(--stage-border)",
           zIndex: 10,
+          flexShrink: 0,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
@@ -139,13 +142,17 @@ export const VisualStage: React.FC<VisualStageProps> = ({
 
       {/* Main Canvas Viewport */}
       <div
+        id="visual-canvas-viewport"
         style={{
           flex: 1,
+          minHeight: 0,
+          minWidth: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           position: "relative",
           backgroundColor: "#090d16",
+          overflow: "hidden",
         }}
       >
         {!activeVisual ? (
@@ -200,14 +207,20 @@ export const VisualStage: React.FC<VisualStageProps> = ({
             )}
           </div>
         ) : (
-          /* Render Active Visual Typology */
+          /* Render Active Visual Typology (scrolls internally if content is larger than viewport) */
           <div
+            id="active-visual-scroll-wrapper"
             style={{
               width: "100%",
               height: "100%",
+              maxHeight: "100%",
+              minHeight: 0,
+              minWidth: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              overflowY: "auto",
+              overflowX: "hidden",
             }}
           >
             {activeVisual.typology === "MATH_EQUATION" && (
@@ -266,10 +279,11 @@ export const VisualStage: React.FC<VisualStageProps> = ({
             display: "flex",
             alignItems: "center",
             gap: "8px",
-            padding: "10px 20px",
+            padding: "8px 18px",
             backgroundColor: "#0d1322",
             borderTop: "1px solid var(--stage-border)",
             overflowX: "auto",
+            flexShrink: 0,
           }}
         >
           <span

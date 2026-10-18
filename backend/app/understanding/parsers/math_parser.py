@@ -18,7 +18,10 @@ from ...visual.models import VisualTypology, VisualPayload
 WORD_TO_DIGIT = {
     "zero": "0", "one": "1", "two": "2", "three": "3", "four": "4",
     "five": "5", "six": "6", "seven": "7", "eight": "8", "nine": "9",
-    "ten": "10", "minus": "-", "negative": "-", "plus": "+",
+    "ten": "10", "eleven": "11", "twelve": "12", "thirteen": "13",
+    "fourteen": "14", "fifteen": "15", "sixteen": "16", "seventeen": "17",
+    "eighteen": "18", "nineteen": "19", "twenty": "20",
+    "minus": "-", "negative": "-", "plus": "+",
 }
 
 
@@ -30,9 +33,9 @@ def normalize_math_speech(text: str) -> str:
     t = re.sub(r"\bx\s*cubed\b", "x^3", t)
     t = re.sub(r"\bx\s*to\s*the\s*power\s*(of\s*)?2\b", "x^2", t)
     t = re.sub(r"\bx\s*to\s*the\s*power\s*(of\s*)?3\b", "x^3", t)
-    t = re.sub(r"\bequals\b", "=", t)
-    t = re.sub(r"\by\s*equals\b", "y =", t)
-    t = re.sub(r"\bf\s*of\s*x\s*equals\b", "f(x) =", t)
+    t = re.sub(r"\b(is\s+equal\s+to|equals)\b", "=", t)
+    t = re.sub(r"\by\s*=\b", "y =", t)
+    t = re.sub(r"\bf\s*of\s*x\s*=\b", "f(x) =", t)
     
     # Word to number replacements
     for word, digit in WORD_TO_DIGIT.items():
@@ -41,6 +44,9 @@ def normalize_math_speech(text: str) -> str:
     # Clean up duplicate signs e.g. "+ -" -> "-"
     t = re.sub(r"\+\s*-", "-", t)
     t = re.sub(r"-\s*-", "+", t)
+    t = re.sub(r"\+\s*\+", "+", t)
+    # Strip trailing periods on numbers like "5." -> "5"
+    t = re.sub(r"(\d+)\.", r"\1", t)
     t = re.sub(r"\s+", " ", t).strip()
     return t
 
@@ -108,7 +114,7 @@ class MathParser:
                 # Calculate vertex automatically from function if quadratic
                 vx, vy = self._derive_vertex_from_expr(func_expr)
                 if vx is None:
-                    vx, vy = 0.0, 0.0
+                    return None
 
             # Update points list: update or append vertex
             new_points = [p for p in existing_points if p.get("id") != "vertex_pt"]
@@ -192,7 +198,7 @@ class MathParser:
 
         # Extract coefficients a, b, c from patterns like "y = x^2 - 4x + 3", "x^2 - 9", "2x^2 + 4x - 6"
         # Regex to match quadratic terms
-        quad_regex = r"(?:y\s*=\s*|f\(x\)\s*=\s*|plot\s+)?(-?\s*\d*)\s*x\^2(?:\s*([+-]\s*\d*)\s*x)?(?:\s*([+-]\s*\d+))?"
+        quad_regex = r"(?:(?:plot\s+|graph\s+|draw\s+)?(?:y\s*=\s*|f\(x\)\s*=\s*)|(?:plot|graph|draw)\s+)?(-?\s*\d*(?:\.\d+)?)\s*x\^2(?:\s*([+-]\s*\d*(?:\.\d+)?)\s*x)?(?:\s*([+-]\s*\d+(?:\.\d+)?))?"
         match = re.search(quad_regex, norm)
         
         a, b, c = 1.0, 0.0, 0.0
@@ -232,20 +238,20 @@ class MathParser:
 
         # Construct LaTeX and JS expression
         # Format terms cleanly
-        a_part = f"{int(a) if a.is_integer() else a}x^2" if a != 1 else "x^2"
+        a_part = f"{int(a) if a.is_integer() else round(a, 2)}x^2" if a != 1 else "x^2"
         if a == -1: a_part = "-x^2"
         
         b_part = ""
         if b > 0:
-            b_part = f" + {int(b) if b.is_integer() else b}x" if b != 1 else " + x"
+            b_part = f" + {int(b) if b.is_integer() else round(b, 2)}x" if b != 1 else " + x"
         elif b < 0:
-            b_part = f" - {abs(int(b) if b.is_integer() else b)}x" if b != -1 else " - x"
+            b_part = f" - {abs(int(b) if b.is_integer() else round(b, 2))}x" if b != -1 else " - x"
             
         c_part = ""
         if c > 0:
-            c_part = f" + {int(c) if c.is_integer() else c}"
+            c_part = f" + {int(c) if c.is_integer() else round(c, 2)}"
         elif c < 0:
-            c_part = f" - {abs(int(c) if c.is_integer() else c)}"
+            c_part = f" - {abs(int(c) if c.is_integer() else round(c, 2))}"
 
         latex_fn = f"f(x) = {a_part}{b_part}{c_part}".strip()
         js_expr = f"{a}*x*x + ({b})*x + ({c})"
@@ -292,10 +298,10 @@ class MathParser:
 
     def _parse_linear(self, norm: str, raw_text: str) -> Optional[ExtractedConcept]:
         """Parses linear equations: y = mx + b."""
-        if not re.search(r"\b(line|linear|slope|y\s*=\s*-?\d*\s*x|plot\s+y\s*=)\b", norm):
+        if not re.search(r"\b(line|linear|slope|y\s*=\s*-?\d*\s*x|plot\s+y\s*=|plot\s+.*x)\b", norm):
             return None
             
-        lin_regex = r"(?:y\s*=\s*|f\(x\)\s*=\s*|plot\s+)?(-?\s*\d*)\s*x(?:\s*([+-]\s*\d+))?"
+        lin_regex = r"(?:(?:plot\s+|graph\s+|draw\s+)?(?:y\s*=\s*|f\(x\)\s*=\s*)|(?:plot|graph|draw)\s+)?(-?\s*\d*(?:\.\d+)?)\s*x(?:\s*([+-]\s*\d+(?:\.\d+)?))?"
         match = re.search(lin_regex, norm)
         if not match:
             return None
@@ -312,20 +318,37 @@ class MathParser:
             try: b = float(match.group(2).replace(" ", ""))
             except ValueError: b = 0.0
 
-        m_part = f"{int(m) if m.is_integer() else m}x" if m != 1 else "x"
+        m_part = f"{int(m) if m.is_integer() else round(m, 2)}x" if m != 1 else "x"
         if m == -1: m_part = "-x"
-        b_part = f" + {int(b) if b.is_integer() else b}" if b > 0 else (f" - {abs(int(b) if b.is_integer() else b)}" if b < 0 else "")
+        b_part = f" + {int(b) if b.is_integer() else round(b, 2)}" if b > 0 else (f" - {abs(int(b) if b.is_integer() else round(b, 2))}" if b < 0 else "")
         latex_fn = f"f(x) = {m_part}{b_part}"
         js_expr = f"{m}*x + ({b})"
 
-        # Points of interest: y-intercept
+        # Points of interest: y-intercept and x-intercept
         points = [{
             "id": "y_intercept",
-            "label": f"Intercept (0, {int(b) if b.is_integer() else b})",
+            "label": f"Y-Intercept (0, {int(b) if b.is_integer() else round(b, 2)})",
             "coordinates": [0.0, b],
             "highlight": True,
-            "details": f"y-intercept at x = 0"
+            "details": "y-intercept at x = 0"
         }]
+
+        x_int = None
+        if m != 0:
+            x_int = -b / m
+            points.append({
+                "id": "x_intercept",
+                "label": f"X-Intercept ({int(x_int) if x_int.is_integer() else round(x_int, 2)}, 0)",
+                "coordinates": [round(x_int, 2), 0.0],
+                "highlight": False,
+                "details": "x-intercept at y = 0"
+            })
+
+        # Frame domain and range to comfortably show intercepts
+        d_min = min(-6.0, round((x_int or 0) - 3.0, 1))
+        d_max = max(6.0, round((x_int or 0) + 3.0, 1))
+        r_min = min(-6.0, round(b - 4.0, 1))
+        r_max = max(6.0, round(b + 4.0, 1))
 
         return ExtractedConcept(
             concept_name="Linear Function",
@@ -340,8 +363,8 @@ class MathParser:
                 "title": f"Linear Function ${latex_fn}$",
                 "function_latex": latex_fn,
                 "function_expr": js_expr,
-                "domain": [-6.0, 6.0],
-                "range": [-6.0, 6.0],
+                "domain": [d_min, d_max],
+                "range": [r_min, r_max],
                 "points": points
             }
         )

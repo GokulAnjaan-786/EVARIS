@@ -23,6 +23,22 @@ _ACTIVE_COMPUTE_TYPE: str = "int8"
 _CUDA_ERROR: Optional[str] = None
 _MODEL_NAME: str = "tiny.en"
 
+# Common Faster-Whisper YouTube training artifact hallucinations on silence/low-energy slices
+HALLUCINATED_PHRASES = {
+    "thanks for watching",
+    "thank you for watching",
+    "thanks for listening",
+    "thank you",
+    "bye",
+    "bye bye",
+    "bye. bye",
+    "you are just",
+    "please subscribe",
+    "subscribe to my channel",
+    "see you next time",
+    "subtitles by",
+}
+
 
 def _initialize_whisper_model() -> Tuple[WhisperModel, str, str, Optional[str]]:
     """Initializes WhisperModel with safe device detection.
@@ -165,13 +181,22 @@ class WhisperSpeechEngine:
                 beam_size=1,
                 language="en",
                 temperature=0.0,
+                condition_on_previous_text=False,
                 vad_filter=True,
                 vad_parameters=dict(min_silence_duration_ms=300)
             )
 
             text_segments: List[str] = []
             for segment in segments:
+                # Discard segments with high silence/non-speech probability
+                if getattr(segment, "no_speech_prob", 0.0) > 0.65:
+                    continue
+
                 clean_text = segment.text.strip()
+                normalized = clean_text.lower().rstrip(".,!? ")
+                if normalized in HALLUCINATED_PHRASES:
+                    continue
+
                 if clean_text:
                     text_segments.append(clean_text)
 
